@@ -8,14 +8,23 @@ section .text
 ;--------------------------------------
 _start:
 
+	STDOUT equ 1
+	WRITE_CMD equ 1
+	
+			
+	%if 1
 		call prp_jmp_table
 	br1:
+
 		push '!'
 		push test_str
+		push 10
 		push ma_str
 		call printf
 	br2:
 		sub rsp, 2 * stack_allign	; free stack from fuction arguments
+	%endif	
+	
 	br3:
 		call exit
 ;--------------------------------------
@@ -193,7 +202,7 @@ printf:
 	dec_proc:
 	
 		push qword [rbp + r15]
-		sub r15, stack_allign
+		add r15, stack_allign
 
 		push 10d
 		
@@ -236,13 +245,17 @@ printf:
 				
 		call itoa_stack
 		
-		mov rdx, integer
-		mov AH, 09h
-		int 21h
+		mov rdi, integer
+		call strlen
+		
+		mov rax, WRITE_CMD
+		mov rdi, STDOUT
+		mov rsi, integer
+		
+		syscall
 		
 		inc rcx
-		
-		inc rdi
+		inc r14
 		jmp str_scan
 
 
@@ -300,7 +313,7 @@ prp_jmp_table:
 
 		SET_JMP 's', str_proc
 		
-		;SET_JMP 'd', dec_proc
+		SET_JMP 'd', dec_proc
 		
 		;SET_JMP 'o', oct_proc
 		
@@ -343,9 +356,9 @@ itoa_stack:
 
 			;[PARAMS]
 			
-		mov rdi, [rbp - 2 * stack_allign]
-		mov rbx, [rbp - 3 * stack_allign]
-		mov rax, [rbp - 4 * stack_allign]
+		mov rdi, [rbp + 2 * stack_allign]
+		mov rbx, [rbp + 3 * stack_allign]
+		mov rax, [rbp + 4 * stack_allign]
 		
 		call itoa
 
@@ -353,7 +366,7 @@ itoa_stack:
 					;[EPILOG]
 		pop rbp	
 							
-		ret 8
+		ret stack_allign * 3
 ;------------------------------------------------
 
 
@@ -366,7 +379,7 @@ itoa_stack:
 ;
 ;	rbx - base (to)
 ;
-;	rdi -/ enough memory to store stringed-integer
+;	rdi - enough memory to store stringed-integer
 ;
 ;[return]:
 ;
@@ -382,14 +395,14 @@ itoa:
 		multipush rax,rbx,rcx,rdx,rdi,rdi,rbp
 
 		mov rbp, rdi	
-
+		; rax - argument integer
+		
 	.poka:		
 		xor rdx, rdx			
-		div rbx
+		idiv rbx
 		
-		xchg rdi, rdx
-		mov dl, ma_alpha[rdi]
-		mov [rdi], dl
+		mov cl, ma_alpha[rdx]	; char (rax % rbx) -> rcx
+		mov [byte rdi], cl
 		inc rdi
 		
 		cmp rax, 0 
@@ -398,9 +411,9 @@ itoa:
 		mov cl, 0
 		mov [rdi], cl
 
-		sub rdi, rbp	; Prepare rcx argument for prerevorot()
+		sub rdi, rbp	; Calculate length
 		mov rcx, rdi
-		mov rdi, rbp
+		mov rdi, rbp	; Recover source pointer
 		
 		call perevorot
 		
@@ -501,8 +514,8 @@ strlen:
 section .data
 
 ma_alpha db '0123456789ABCDEF'
-integer db 17 DUP(0)
+integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
-test_str db 'milk packets with fat', 0
-ma_str db '%s %c', 0
+test_str db 'packets', 0
+ma_str db 'We need %d %s %c', 0

@@ -1,0 +1,5 @@
+*.log
+*.lang
+*.txt
+*.o
+.gdb_history
