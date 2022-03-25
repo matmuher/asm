@@ -15,14 +15,19 @@ _start:
 	%if 1
 		call prp_jmp_table
 	br1:
-
 		push '!'
 		push test_str
-		push 10
+		push 15
+		push 15
+		push 15
+		push 15
 		push ma_str
 		call printf
 	br2:
-		sub rsp, 2 * stack_allign	; free stack from fuction arguments
+		dec rax		; percent was not in stack
+		mov rbx, stack_allign
+		mul rbx
+		sub rsp, rax	; free stack from fuction arguments
 	%endif	
 	
 	br3:
@@ -103,6 +108,8 @@ printf:
 		
 		;multipush rax, rbx, rdx, rdi, rsi, r14, r15
 		
+		to_address_factor equ 3	; is used to go from format char to jmp_table address
+		
 		stack_allign equ 8	; bytes
 		
 		
@@ -138,10 +145,13 @@ printf:
 	
 		inc r14
 
+		cmp byte [r14], '%'
+		je percent_proc
+		
 		xor rbx, rbx
 		mov bl, [r14]
 		sub bl, 'b'
-		shl rbx, 4	; to make an address
+		shl rbx, to_address_factor	; to make an address
 
 		jmp jmp_table[rbx]		
 
@@ -212,18 +222,18 @@ printf:
 	hex_proc:
 	
 		push qword [rbp + r15]
-		sub r15, stack_allign
-		
+		add r15, stack_allign
+
 		push 16d
 		
-		jmp int_proc	
+		jmp int_proc
 
 
 	oct_proc:
 	
 		push qword [rbp + r15]
-		sub r15, stack_allign
-		
+		add r15, stack_allign
+
 		push 8d
 		
 		jmp int_proc
@@ -232,8 +242,8 @@ printf:
 	bin_proc:
 	
 		push qword [rbp + r15]
-		sub r15, stack_allign
-		
+		add r15, stack_allign
+
 		push 2d
 		
 		jmp int_proc
@@ -259,7 +269,7 @@ printf:
 		jmp str_scan
 
 
-	prc_proc:
+	percent_proc:
 	
 		mov DL, '%'
 		mov AH, 02h
@@ -272,14 +282,21 @@ printf:
 
 
 	alert_unknwn_frmt:
-	
-		mov rdx, alert_unknwn_frmt_str
-		mov rax, 1	; write
-		int 21h
+			
+		mov rax, 1	; write (rdi = stdout, rsi = str_pointer, rdx = bytes num)
+		
+		mov rdi, 1	; stdout
+		
+		mov rsi, alert_unknwn_frmt_str	; string pointer -> rsi
+		
+		mov rdx, 23
+		
+		syscall
 				
 		xor rcx, rcx
 		dec rcx
 		jmp str_end		
+
 
 alert_unknwn_frmt_str db '%[ERROR:Unknown format]', 0
 ;--------------------------------------
@@ -289,10 +306,11 @@ alert_unknwn_frmt_str db '%[ERROR:Unknown format]', 0
 ;--------------------------------------
 %macro SET_JMP 2
 
+		xor rbx, rbx
 		mov rax, %2
 		mov rbx, (%1 - 'b')
-		shl rbx, 4
-		mov jmp_table[rbx], rax
+		shl rbx, to_address_factor
+		mov qword jmp_table[rbx], rax
 
 %endmacro
 ;--------------------------------------
@@ -307,21 +325,18 @@ prp_jmp_table:
 
 		xor rbx, rbx
 		
-		bit_depth equ 8	; byte
-		
 		SET_JMP 'c', chr_proc
 
 		SET_JMP 's', str_proc
 		
 		SET_JMP 'd', dec_proc
 		
-		;SET_JMP 'o', oct_proc
+		SET_JMP 'o', oct_proc
 		
-		;SET_JMP 'b', bin_proc
+		SET_JMP 'b', bin_proc
 		
-		;SET_JMP 'x', hex_proc
+		SET_JMP 'x', hex_proc
 		
-		;SET_JMP '%', prc_proc
 		
 		ret
 ;--------------------------------------
@@ -518,4 +533,4 @@ integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
 test_str db 'packets', 0
-ma_str db 'We need %d %s %c', 0
+ma_str db 'We %x %d %o %b %s %c %%', 0
