@@ -1,7 +1,7 @@
 ;		[PRINTF]
 
-global _start
-
+;global _start
+global printf_c
 
 section .text
 
@@ -29,10 +29,9 @@ section .text
 
 ;======================================
 
-
+%if 0
 ;--------------------------------------
-_start:
-
+_start: 
 	
 	args_push ma_str, test_str
 	;args_push ma_str, test_str, '!', 15, 15, 15, 15
@@ -45,7 +44,7 @@ _start:
 	
 	call exit
 ;--------------------------------------
-
+%endif
 
 ;======================================
 
@@ -94,8 +93,39 @@ exit:
 
 
 ;--------------------------------------
-;		[PRINTF] (cdecl)
+;		[PRINTF_C] (stdcall)
+;[descript]:
+;	
+;	Wrap for printf (): gets argumets as for stdcall
+;	and transfers them to cdecl format
 ;--------------------------------------
+printf_c:
+
+	push r9
+	push r8
+	push rcx
+	push rdx
+	push rsi
+	push rdi
+	
+	call printf
+	
+br1:
+	add rax, 1
+	add rsp, 6 * STACK_ALLIGN
+	
+	nop
+	
+	ret
+;--------------------------------------
+
+
+;======================================
+
+
+;--------------------------------------
+;		[PRINTF] (cdecl)
+;
 ;[descript]:
 ;
 ;	Prints string concerning specifiers:
@@ -109,13 +139,14 @@ exit:
 ;	%s - string ($-ended)
 ;
 ;	%% - percent
-;--------------------------------------
+;
 ;[params]:
 ;
 ;	1 - formatted string adress in DS
 ;
 ;	... - format params	
 ;--------------------------------------
+;[return]:
 ;
 ;	r13 - number of written chars
 ;	or
