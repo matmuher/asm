@@ -271,14 +271,7 @@ printf:
 
 	percent_proc:
 	
-		mov DL, '%'
-		mov AH, 02h
-		int 21h
-		
-		inc rcx
-		
-		inc rdi
-		jmp str_scan
+		jmp common_char
 
 
 	alert_unknwn_frmt:
@@ -343,7 +336,7 @@ prp_jmp_table:
 
 
 
-;------------------------------------------------
+;--------------------------------------
 ;		[ITOA via stack]
 ;
 ;[params]:
@@ -358,7 +351,7 @@ prp_jmp_table:
 ;
 ;	puts string in user's memory
 ;
-;------------------------------------------------
+;--------------------------------------
 itoa_stack:
 
 			;[PROLOG]
@@ -382,10 +375,9 @@ itoa_stack:
 		pop rbp	
 							
 		ret stack_allign * 3
-;------------------------------------------------
+;--------------------------------------
 
-
-;------------------------------------------------
+;--------------------------------------
 ;		[itoa]
 ;
 ;[params]:
@@ -434,6 +426,80 @@ itoa:
 		
 		
 		multipop rbp,rdi,rdi,rdx,rcx,rbx,rax
+
+		ret
+;--------------------------------------
+
+
+;--------------------------------------
+;		[itoa2]
+;
+;[params]:
+;
+;	rax - integer to print
+;
+;	cl - base (2's degree)
+;
+;	rdi - enough memory to store stringed-integer
+;
+;[return]:
+;
+;	puts string in user's memory
+;
+;[destroy]:
+;
+;	rax, rbx, rcx, rdx, rdi, rdi, rbp
+;
+;--------------------------------------
+itoa2:
+
+		multipush rax, rbx, rcx, rdx, rdi, rbp, r13
+
+		mov rbp, rdi	
+		; rax - argument integer
+		
+		mov dl, cl
+		mov dh, cl
+		
+		mov r13, 1
+		
+	.make_mask:
+			
+		dec dh
+		cmp dh, 0
+		je .mask_is_ready
+	
+		shl r13, 1
+		inc r13
+		
+		jmp .make_mask
+		
+	.mask_is_ready:
+	
+		
+	.poka:		
+		mov rdx, rax
+		and rdx, r13
+		
+		shr rax, cl
+		
+		mov bl, ma_alpha[rdx]	; char (rax % rbx) -> rcx
+		mov [byte rdi], bl
+		inc rdi
+		
+		cmp rax, 0 
+		jne .poka
+		
+		mov bl, 0
+		mov [rdi], bl
+
+		sub rdi, rbp	; Calculate length
+		mov rcx, rdi
+		mov rdi, rbp	; Recover source pointer
+		
+		call perevorot
+		
+		multipop r13, rbp, rdi, rdx, rcx, rbx, rax
 
 		ret
 ;--------------------------------------
@@ -533,4 +599,4 @@ integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
 test_str db 'packets', 0
-ma_str db 'We %x %d %o %b %s %c %%', 0
+ma_str db 'We %x %d %o %b %s %c %% %%%% %g', 0
