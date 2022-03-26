@@ -38,18 +38,15 @@ _start:
 	
 	call prp_jmp_table
 	
-	br1:
-		args_push ma_str, test_str, '!', 15, 15, 15, 15, ' '
-		call printf
-	br2:
-		sub rsp, rax	; free stack from fuction arguments
-		
-		args_push int_print, rcx
-		call printf
-		sub rsp, rax
-		
-	br3:
-		call exit
+	args_push ma_str, test_str, '!', 15, 15, 15, 15
+	call printf
+	sub rsp, rax	; free stack from fuction arguments
+	
+	args_push int_print, r13
+	call printf
+	sub rsp, rax
+	
+	call exit
 ;--------------------------------------
 
 
@@ -123,9 +120,9 @@ exit:
 ;	... - format params	
 ;--------------------------------------
 ;
-;	rcx - number of written chars
+;	r13 - number of written chars
 ;	or
-;	FFFF - if format error occured
+;	FFFF (if format error occured)
 ;--------------------------------------
 printf:
 
@@ -145,7 +142,7 @@ printf:
 		mov r14, [rbp + r15]	; grab format string
 		add r15, stack_allign
 		
-		xor rcx, rcx
+		xor r13, r13
 
 
 	str_scan:
@@ -193,7 +190,7 @@ printf:
 		syscall
 		
 		
-		inc rcx	
+		inc r13	
 		inc r14
 		jmp str_scan	
 
@@ -212,7 +209,7 @@ printf:
 		syscall
 		
 		
-		inc rcx		
+		inc r13		
 		inc r14		; Next str symbol
 		jmp str_scan
 		
@@ -231,7 +228,7 @@ printf:
 		
 		syscall
 		
-		inc rcx
+		inc r13
 		inc r14
 		jmp str_scan
 
@@ -254,11 +251,9 @@ printf:
 		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		xchg rbx, rcx
 		mov cl, 4d
 		mov rdi, integer
 		call itoa2
-		xchg rbx, rcx
 		
 		jmp int_proc
 
@@ -268,11 +263,9 @@ printf:
 		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		xchg rbx, rcx
 		mov cl, 3d
 		mov rdi, integer
 		call itoa2
-		xchg rbx, rcx
 		
 		jmp int_proc
 		
@@ -281,11 +274,9 @@ printf:
 		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		xchg rbx, rcx
 		mov cl, 1d
 		mov rdi, integer
 		call itoa2
-		xchg rbx, rcx
 		
 		jmp int_proc
 
@@ -301,7 +292,7 @@ printf:
 		
 		syscall
 		
-		inc rcx
+		inc r13
 		inc r14
 		jmp str_scan
 
@@ -323,8 +314,8 @@ printf:
 		
 		syscall
 				
-		xor rcx, rcx
-		dec rcx
+		xor r13, r13
+		dec r13
 		jmp str_end		
 
 
@@ -650,6 +641,6 @@ integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
 test_str db 'packets', 0
-ma_str db 'We %s %c %x %d %o %b %c', 0
+ma_str db 'Wee %s %c %x %d %o %b %%', 0
 int_print db '%d', 0
 
