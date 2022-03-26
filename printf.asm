@@ -33,12 +33,9 @@ section .text
 ;--------------------------------------
 _start:
 
-	STDOUT equ 1
-	WRITE_CMD equ 1
 	
-	call prp_jmp_table
-	
-	args_push ma_str, test_str, '!', 15, 15, 15, 15
+	args_push ma_str, test_str
+	;args_push ma_str, test_str, '!', 15, 15, 15, 15
 	call printf
 	sub rsp, rax	; free stack from fuction arguments
 	
@@ -130,17 +127,32 @@ printf:
 		push rbp
 		mov rbp, rsp
 		
-		multipush rax, rbx, rdx, rdi, rsi, r14, r15
 		
-		to_address_factor equ 3	; is used to go from format char to jmp_table address
-		
-		stack_allign equ 8	; bytes
+		multipush rax, rbx, rdx, rdi, rsi, r14, r15	; Save registers
 		
 		
-		mov r15, stack_allign * 2
-
-		mov r14, [rbp + r15]	; grab format string
-		add r15, stack_allign
+		%ifndef JMP_TABLE
+		
+			call prp_jmp_table
+			%define JMP_TABLE
+			
+		%endif
+		
+		
+		STDOUT equ 1
+		
+		WRITE_CMD equ 1
+		
+		TO_ADDRESS_FACTOR equ 3	; Is used to go from format char to jmp_table address
+		
+		STACK_ALLIGN equ 8	; Bytes
+		
+		
+		mov r15, STACK_ALLIGN * 2	; Shift to get arguments from stack
+						; concerning ret and previous rbp are in stack
+						
+		mov r14, [rbp + r15]	; Grab format string
+		add r15, STACK_ALLIGN
 		
 		xor r13, r13
 
@@ -175,7 +187,7 @@ printf:
 		xor rbx, rbx
 		mov bl, [r14]
 		sub bl, 'b'
-		shl rbx, to_address_factor	; to make an address
+		shl rbx, TO_ADDRESS_FACTOR	; to make an address
 
 		jmp jmp_table[rbx]		
 
@@ -201,7 +213,7 @@ printf:
 		
 		mov rsi, rbp	; mov rsi + rbp <- pointer to char arg
 		add rsi, r15
-		add r15, stack_allign	; mov to next stack argument
+		add r15, STACK_ALLIGN	; mov to next stack argument
 		
 		mov rdi, 1	; stdout
 		mov rdx, 1	; number of bytes
@@ -219,16 +231,17 @@ printf:
 		mov rdi, [rbp + r15]
 		call strlen	; length -> rdx
 		
+		add r13, rdx
+		
 		mov rax, 1	; write (rdi = stdout, rsi = str_pointer, rdx = bytes num)
 		
 		mov rdi, 1	; stdout
 		
 		mov rsi, [rbp + r15]	; string pointer -> rsi
-		add r15, stack_allign
+		add r15, STACK_ALLIGN
 		
 		syscall
 		
-		inc r13
 		inc r14
 		jmp str_scan
 
@@ -236,7 +249,7 @@ printf:
 	dec_proc:
 	
 		mov rax, [rbp + r15]
-		add r15, stack_allign
+		add r15, STACK_ALLIGN
 
 		mov rbx, 10d
 		mov rdi, integer
@@ -249,7 +262,7 @@ printf:
 	hex_proc:
 	
 		mov rax, [rbp + r15]
-		add r15, stack_allign
+		add r15, STACK_ALLIGN
 
 		mov cl, 4d
 		mov rdi, integer
@@ -261,7 +274,7 @@ printf:
 	oct_proc:
 	
 		mov rax, [rbp + r15]
-		add r15, stack_allign
+		add r15, STACK_ALLIGN
 
 		mov cl, 3d
 		mov rdi, integer
@@ -272,7 +285,7 @@ printf:
 	bin_proc:
 	
 		mov rax, [rbp + r15]
-		add r15, stack_allign
+		add r15, STACK_ALLIGN
 
 		mov cl, 1d
 		mov rdi, integer
@@ -332,7 +345,7 @@ alert_unknwn_frmt_str db '%[ERROR:Unknown format]', 0
 		xor rbx, rbx
 		mov rax, %2
 		mov rbx, (%1 - 'b')
-		shl rbx, to_address_factor
+		shl rbx, TO_ADDRESS_FACTOR
 		mov qword jmp_table[rbx], rax
 
 %endmacro
@@ -396,9 +409,9 @@ itoa_stack:
 
 			;[PARAMS]
 			
-		mov rdi, [rbp + 2 * stack_allign]
-		mov rbx, [rbp + 3 * stack_allign]
-		mov rax, [rbp + 4 * stack_allign]
+		mov rdi, [rbp + 2 * STACK_ALLIGN]
+		mov rbx, [rbp + 3 * STACK_ALLIGN]
+		mov rax, [rbp + 4 * STACK_ALLIGN]
 		
 		call itoa
 
@@ -406,7 +419,7 @@ itoa_stack:
 					;[EPILOG]
 		pop rbp	
 							
-		ret stack_allign * 3
+		ret STACK_ALLIGN * 3
 ;--------------------------------------
 
 
@@ -640,7 +653,7 @@ ma_alpha db '0123456789ABCDEF'
 integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
-test_str db 'packets', 0
-ma_str db 'Wee %s %c %x %d %o %b %%', 0
+test_str db 'meow', 0
+ma_str db '%s', 0
 int_print db '%d', 0
 
