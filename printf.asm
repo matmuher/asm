@@ -6,60 +6,84 @@ global _start
 section .text
 
 ;--------------------------------------
+
+
+;======================================
+
+
+;--------------------------------------
+%macro  args_push 1-* 
+
+	mov rax, %0	; get args num
+	
+	%rep  %0 
+	
+		%rotate -1 
+        	push %1 
+ 	
+	%endrep 
+
+%endmacro
+;--------------------------------------
+
+
+;======================================
+
+
+;--------------------------------------
 _start:
 
 	STDOUT equ 1
 	WRITE_CMD equ 1
 	
-			
-	%if 1
-		call prp_jmp_table
+	call prp_jmp_table
+	
 	br1:
-		push '!'
-		push test_str
-		push 15
-		push 15
-		push 15
-		push 15
-		push ma_str
+		args_push ma_str, test_str, '!', 15, 15, 15, 15, ' '
 		call printf
 	br2:
-		dec rax		; percent was not in stack
-		mov rbx, stack_allign
-		mul rbx
 		sub rsp, rax	; free stack from fuction arguments
-	%endif	
-	
+		
+		args_push int_print, rcx
+		call printf
+		sub rsp, rax
+		
 	br3:
 		call exit
 ;--------------------------------------
 
 
+;======================================
+
 
 ;--------------------------------------
 %macro  multipush 1-* 
 
-  %rep  %0 
-        push    %1 
-  %rotate 1 
-  %endrep 
+	%rep %0
+		push %1 
+		%rotate 1 
+	%endrep 
 
 %endmacro
 ;--------------------------------------
 
+
+;======================================
 
 
 ;--------------------------------------
 %macro  multipop 1-* 
 
-  %rep  %0 
-        pop    %1 
-  %rotate 1 
-  %endrep 
-
+	%rep  %0 
+		%rotate -1 
+        	pop %1 
+	%endrep 
+	
 %endmacro
 ;--------------------------------------
 
+
+;======================================
 
 
 ;--------------------------------------
@@ -70,6 +94,9 @@ exit:
 	
 	syscall
 ;--------------------------------------
+
+
+;======================================
 
 
 ;--------------------------------------
@@ -106,7 +133,7 @@ printf:
 		push rbp
 		mov rbp, rsp
 		
-		;multipush rax, rbx, rdx, rdi, rsi, r14, r15
+		multipush rax, rbx, rdx, rdi, rsi, r14, r15
 		
 		to_address_factor equ 3	; is used to go from format char to jmp_table address
 		
@@ -134,7 +161,7 @@ printf:
 					
 	str_end:
 	
-		;multipop r15, r14, rsi, rdi, rdx, rbx, rax
+		multipop rax, rbx, rdx, rdi, rsi, r14, r15
 
 				;[EPILOG]
 		pop rbp
@@ -211,49 +238,59 @@ printf:
 
 	dec_proc:
 	
-		push qword [rbp + r15]
+		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		push 10d
+		mov rbx, 10d
+		mov rdi, integer
+		
+		call itoa
 		
 		jmp int_proc
 
 
 	hex_proc:
 	
-		push qword [rbp + r15]
+		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		push 16d
+		xchg rbx, rcx
+		mov cl, 4d
+		mov rdi, integer
+		call itoa2
+		xchg rbx, rcx
 		
 		jmp int_proc
 
 
 	oct_proc:
 	
-		push qword [rbp + r15]
+		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		push 8d
+		xchg rbx, rcx
+		mov cl, 3d
+		mov rdi, integer
+		call itoa2
+		xchg rbx, rcx
 		
 		jmp int_proc
-
 		
 	bin_proc:
 	
-		push qword [rbp + r15]
+		mov rax, [rbp + r15]
 		add r15, stack_allign
 
-		push 2d
+		xchg rbx, rcx
+		mov cl, 1d
+		mov rdi, integer
+		call itoa2
+		xchg rbx, rcx
 		
 		jmp int_proc
 
 
 	int_proc:
-	
-		push integer
-				
-		call itoa_stack
 		
 		mov rdi, integer
 		call strlen
@@ -295,6 +332,8 @@ alert_unknwn_frmt_str db '%[ERROR:Unknown format]', 0
 ;--------------------------------------
 
 
+;======================================
+
 	
 ;--------------------------------------
 %macro SET_JMP 2
@@ -335,6 +374,8 @@ prp_jmp_table:
 ;--------------------------------------
 
 
+;======================================
+
 
 ;--------------------------------------
 ;		[ITOA via stack]
@@ -359,7 +400,7 @@ itoa_stack:
 		push rbp
 		mov rbp, rsp
 				
-		multipush rdi, rbx, rax
+		multipush rax, rbx, rdi	
 
 
 			;[PARAMS]
@@ -376,6 +417,10 @@ itoa_stack:
 							
 		ret stack_allign * 3
 ;--------------------------------------
+
+
+;======================================
+
 
 ;--------------------------------------
 ;		[itoa]
@@ -399,7 +444,7 @@ itoa_stack:
 ;--------------------------------------
 itoa:
 
-		multipush rax,rbx,rcx,rdx,rdi,rdi,rbp
+		multipush rax, rbx, rcx, rdx, rdi, rbp
 
 		mov rbp, rdi	
 		; rax - argument integer
@@ -425,10 +470,13 @@ itoa:
 		call perevorot
 		
 		
-		multipop rbp,rdi,rdi,rdx,rcx,rbx,rax
+		multipop rax, rbx, rcx, rdx, rdi, rbp
 
 		ret
 ;--------------------------------------
+
+
+;======================================
 
 
 ;--------------------------------------
@@ -499,10 +547,13 @@ itoa2:
 		
 		call perevorot
 		
-		multipop r13, rbp, rdi, rdx, rcx, rbx, rax
+		multipop rax, rbx, rcx, rdx, rdi, rbp, r13
 
 		ret
 ;--------------------------------------
+
+
+;======================================
 
 
 ;--------------------------------------
@@ -543,13 +594,13 @@ perevorot:
 		cmp rbp, rdi
 		jg .poka			
 	
-		multipop rbp,rdi,rdx,rcx,rbx
+		multipop rbx, rcx, rdx, rdi, rbp
 
 		ret
 ;--------------------------------------
 
 
-;=======================================	
+;======================================	
 	
 	
 ;--------------------------------------
@@ -582,13 +633,13 @@ strlen:
 	xchg rdx, rdi
 	dec rdx		; '\0' is not concerned
 	
-	multipop rdi, rcx, rax
+	multipop rax, rcx, rdi
 	
 	ret
 ;--------------------------------------
 
 
-;=======================================
+;======================================
 
 
 ;--------------------------------------
@@ -599,4 +650,6 @@ integer db 'aboba_squad', 0
 jmp_table dq ('x' - 'b' + 1) DUP(alert_unknwn_frmt)
 
 test_str db 'packets', 0
-ma_str db 'We %x %d %o %b %s %c %% %%%% %g', 0
+ma_str db 'We %s %c %x %d %o %b %c', 0
+int_print db '%d', 0
+
