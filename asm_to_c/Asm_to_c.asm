@@ -88,7 +88,7 @@ exit:
 ;--------------------------------------
 ;
 ;
-;		[PRINTF_C] (stdcall)
+;		[PRINTF_C] (fastcall process)
 ;[descript]:
 ;	
 ;	Wrap for printf (): gets argumets as for stdcall
